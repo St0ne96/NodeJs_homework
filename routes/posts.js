@@ -1,6 +1,7 @@
 const express = require('express');
+const authMiddleware = require('../middleware/auth');
 const router = express.Router();
-const { Post, User } = require('../models');
+const { Post, User, Like, sequelize, Sequelize } = require('../models');
 const { postCreateValidation,
     postUpdateValidation,
  } = require('../validations')
@@ -9,14 +10,29 @@ const { postCreateValidation,
 router.get('/', async (req, res) => {
     try {
         const posts = await Post.findAll({
-            include: [{ model: User, as: 'user', attributes: ['nickname'] }],
-            attributes: { exclude: ['userId']},
+           // attributes: { exclude: ['userId']},
+           attributes: [
+            'id',
+            'title',
+            'content',
+            [Sequelize.fn('count', Sequelize.col('likes.id')), 'numOfLikes'],
+           ],
+           include: [
+            { model: User, as: 'user', attributes: ['nickname'] },
+            {
+                   model: Like,
+                   as: 'likes',
+                   attributes: [],
+            },
+         ],
+        group:['postId'],
+        order:[[Sequelize.literal('numOfLikes'), 'DESC']]
         });
         res.json(posts);
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
-})
+});
 
 // 게시글 상세 조회
 router.get('/:id', async (req, res) => {
@@ -35,9 +51,11 @@ router.get('/:id', async (req, res) => {
 });
 
 // 게시글 작성
-router.post('/', async (req, res) => {
+router.post('/', authMiddleware, async (req, res) => {
+    const { currentUser } = res.locals;
+    const userId = currentUser.id;
     try {
-        const { title, content, userId } = await postCreateValidation.validateAsync(
+        const { title, content } = await postCreateValidation.validateAsync(
             req.body
         );
         const post = await Post.create({
@@ -86,5 +104,29 @@ router.delete('/:id', async (req, res) => {
         res.status(500).json({ message: err.message });
     }
 });
+
+//좋아요 
+router.post('/:id/like', authMiddleware, async (req,res) => {
+    const { id: postId } = req.params; 
+    const { currentUser: { id: userId },} = res.locals; 
+
+    try {
+        const like = await Like.findOne({
+            where: {userId, postId},
+        });
+
+        const isLikeAlready = !!like;
+
+        if (isLikeAlready) {
+            const deleteLike = await Like.destroy({ where: { userId, postId, },});
+            res.json(deleteLike);
+        } else {
+            const postedlike = await Like.create({ userId, postId, });
+            res.json(postedlike);
+        }
+    } catch (err) {
+        res.status(500).json({ message: err. message });
+    }
+})
 
 module.exports = router;

@@ -12,7 +12,7 @@ const signupValidation = Joi.object({
 const postCreateValidation = Joi.object({
     title: Joi.string().not('').required(),
     content: Joi.string().not('').required(),
-    userId: Joi.number().required(),
+    userId: Joi.forbidden(),
 });
 
 
