@@ -6,6 +6,10 @@ const { postCreateValidation,
     postUpdateValidation,
  } = require('../validations')
 
+
+const multer = require('multer'); 
+// const upload = multer(); 
+
 // 게시글 조회 
 router.get('/', async (req, res) => {
     try {
@@ -129,4 +133,78 @@ router.post('/:id/like', authMiddleware, async (req,res) => {
     }
 })
 
+ //이미지 업로드 
+// router.post('/:id/image', upload.single('image'), async (req, res) => {
+//   const post = await Post.findByPk(req.params.id);
+//   if (!post) {
+//     return res.status(404).send('Post not found');
+//   }
+  
+//  post.image = req.file.buffer;
+//  await post.save();
+//  res.send('image uploaded');
+// });
+
+// router.get('/:id/image', async (req, res) => {
+//     const post = await Post.findByPk(req.params.id);
+//     if (!post) {
+//       return res.status(404).send('Post not found');
+//     }
+  
+//     if (!post.image) {
+//       return res.status(404).send('Post image not found');
+//     }
+  
+//     res.set('Content-Type', 'image/jpeg');
+//     res.send(post.image);
+//   });
+
+//이미지 업로드 
+const storage = multer.diskStorage({
+    destination: function(req, file, cb) {
+        cb(null,'image/')
+    },
+
+    filename: function(req, file, cb) {
+        cb(null, file.fieldname + '-' + Date.now())
+    }
+});
+
+const upload = multer({ storage: storage });
+
+router.post('/:id/image',upload.single('image'), async(req, res) => {
+    const post = await Post.findByPk(req.params.id);
+    if(!post) {
+        return res.status(404).send('Post no found');
+    }
+
+    post.image = req.file.path; 
+    await post.save();
+
+    res.send('image uploaded');
+})
+
+const fs = require('fs');
+
+router.get('/:id/image', async (req, res) => {
+  const post = await Post.findByPk(req.params.id);
+  if (!post) {
+    return res.status(404).send('Post not found');
+  }
+
+  // 저장된 경로를 사용하여 파일을 읽어옴
+  const imagePath = post.image;
+
+  fs.readFile(imagePath, (err, data) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).send('Internal Server Error');
+    }
+    console.log(imagePath); 
+    
+    // 읽어온 데이터를 응답으로 보냄
+    res.writeHead(200, {'Content-Type': 'image/jpeg'});
+    res.end(data);
+  });
+});
 module.exports = router;

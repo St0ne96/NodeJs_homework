@@ -8,7 +8,16 @@ const { sequelize } = require('./models');
 
 const app = express();
 
+
+/* router */
 app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+
+
+
+app.get('/upload', (req, res) => {
+    res.sendFile(__dirname + "/views/test.html");
+})
 
 app.use(authRouter);
 app.use('/posts', postRouter);
